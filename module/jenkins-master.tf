@@ -7,7 +7,7 @@ data "aws_vpc" "main" {
 }
 
 # Subnets of the jenkins instances
-data "aws_subnets" "service" {
+data "aws_subnets" "jenkins" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.main.id]
@@ -40,10 +40,10 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical official
 }
 
-resource "aws_elb" "service" {
+resource "aws_elb" "jenkins" {
   name_prefix   = "${var.service_name}-"
   security_groups             = [aws_security_group.http.id, aws_security_group.ssh.id]
-  subnets                     = data.aws_subnets.service.ids
+  subnets                     = data.aws_subnets.jenkins.ids
   cross_zone_load_balancing   = true
   connection_draining         = true
   connection_draining_timeout = 300
@@ -79,7 +79,7 @@ data "template_file" "jenkins" {
   template = file("${path.module}/file/install.sh")
 }
 
-resource "aws_launch_configuration" "service" {
+resource "aws_launch_configuration" "jenkins" {
   name_prefix   = "${var.service_name}-${var.environment}-"
   image_id      = data.aws_ami.ubuntu.id
   instance_type = "t2.micro"
@@ -93,15 +93,15 @@ resource "aws_launch_configuration" "service" {
   }
 }
 
-resource "aws_autoscaling_group" "service" {
+resource "aws_autoscaling_group" "jenkins" {
   name_prefix   = "${var.service_name}-${var.environment}-"
-  launch_configuration      = aws_launch_configuration.service.id
+  launch_configuration      = aws_launch_configuration.jenkins.id
   min_size                  = 1
-  max_size                  = length(data.aws_subnets.service.ids)
+  max_size                  = length(data.aws_subnets.jenkins.ids)
   health_check_type         = "ELB"
-  load_balancers            = [aws_elb.service.name]
+  load_balancers            = [aws_elb.jenkins.name]
   termination_policies      = ["OldestLaunchConfiguration"]
-  vpc_zone_identifier       = data.aws_subnets.service.ids
+  vpc_zone_identifier       = data.aws_subnets.jenkins.ids
   wait_for_capacity_timeout = "20m"
 
   lifecycle {
