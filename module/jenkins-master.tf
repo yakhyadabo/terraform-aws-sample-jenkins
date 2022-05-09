@@ -59,7 +59,7 @@ resource "aws_elb" "jenkins" {
     healthy_threshold   = 2
     unhealthy_threshold = 2
     timeout             = 3
-    target              = "HTTP:8080/"
+    target              = "HTTP:8080/login"
     interval            = 30
   }
 
@@ -80,7 +80,7 @@ data "template_file" "jenkins" {
 }
 
 resource "aws_launch_configuration" "jenkins" {
-  name_prefix   = "${var.service_name}-${var.environment}-"
+  name_prefix   = "${var.service_name}-"
   image_id      = data.aws_ami.ubuntu.id
   instance_type = "t2.micro"
   security_groups = [aws_security_group.http.id, aws_security_group.ssh.id]
@@ -94,7 +94,7 @@ resource "aws_launch_configuration" "jenkins" {
 }
 
 resource "aws_autoscaling_group" "jenkins" {
-  name_prefix   = "${var.service_name}-${var.environment}-"
+  name_prefix   = "${var.service_name}-"
   launch_configuration      = aws_launch_configuration.jenkins.id
   min_size                  = 1
   max_size                  = length(data.aws_subnets.jenkins.ids)
