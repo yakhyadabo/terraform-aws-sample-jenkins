@@ -1,3 +1,3 @@
 output "hostnames" {
-  value = aws_elb.service.dns_name
+  value = aws_elb.jenkins.dns_name
 }
