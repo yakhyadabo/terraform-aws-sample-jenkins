@@ -28,3 +28,11 @@ chown-R jenkins jenkins $JENKINS_HOME/.ssh
 echo "Installing and start jenkins ..."
 sudo apt install -y jenkins
 sudo systemctl start jenkins
+
+
+#sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+#sudo sh -c \"iptables-save > /etc/iptables.rules\"
+#echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
+#echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
+#sudo apt-get -y install iptables-persistent
+#sudo ufw allow 8080
