@@ -24,6 +24,12 @@ chmod 644 $JENKINS_HOME/.ssh/id_rsa.pub
 chmod 600 $JENKINS_HOME/.ssh/id_rsa
 chown-R jenkins jenkins $JENKINS_HOME/.ssh
 
+echo "Install Docker engine"
+sudo apt install docker.io
+usermod -a G docker ubuntu
+sudo systemctl enable --now docker
+docker --version
+
 # Install and start Jenkins
 echo "Installing and start jenkins ..."
 sudo apt install -y jenkins
