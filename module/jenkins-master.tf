@@ -1,23 +1,3 @@
-# VPC of the subnets
-data "aws_vpc" "main" {
-  tags = {
-    Name = var.vpc_name
-    Environment = var.environment
-  }
-}
-
-# Subnets of the jenkins instances
-data "aws_subnets" "jenkins" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.main.id]
-  }
-
-  tags = {
-    Zone = "public"
-  }
-}
-
 # Find an official Ubuntu AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -40,8 +20,15 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical official
 }
 
+
+resource "random_pet" "jenkins" {
+  keepers = {
+    environment = var.environment
+  }
+}
+
 resource "aws_elb" "jenkins" {
-  name_prefix   = "${var.service_name}-"
+  name = join ("-", ["jenkins", random_pet.jenkins.id])
   security_groups             = [aws_security_group.http.id, aws_security_group.ssh.id]
   subnets                     = data.aws_subnets.jenkins.ids
   cross_zone_load_balancing   = true
@@ -80,7 +67,7 @@ data "template_file" "jenkins" {
 }
 
 resource "aws_launch_configuration" "jenkins" {
-  name_prefix   = "${var.service_name}-"
+  name_prefix   = join("-", [var.service_name, var.environment])
   image_id      = data.aws_ami.ubuntu.id
   instance_type = "t2.micro"
   security_groups = [aws_security_group.http.id, aws_security_group.ssh.id]
@@ -94,7 +81,7 @@ resource "aws_launch_configuration" "jenkins" {
 }
 
 resource "aws_autoscaling_group" "jenkins" {
-  name_prefix   = "${var.service_name}-"
+  name   = aws_launch_configuration.jenkins.name
   launch_configuration      = aws_launch_configuration.jenkins.id
   min_size                  = 1
   max_size                  = length(data.aws_subnets.jenkins.ids)
