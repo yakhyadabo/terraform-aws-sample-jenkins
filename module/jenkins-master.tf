@@ -1,64 +1,54 @@
-# Find an official Ubuntu AMI
-data "aws_ami" "ubuntu" {
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-
-  owners = ["099720109477"] # Canonical official
-}
-
-
 resource "random_pet" "jenkins" {
   keepers = {
     environment = var.environment
   }
 }
 
-resource "aws_elb" "jenkins" {
+resource "aws_lb" "jenkins" {
   name = join ("-", ["jenkins", random_pet.jenkins.id])
-  security_groups             = [aws_security_group.http.id, aws_security_group.ssh.id]
-  subnets                     = data.aws_subnets.jenkins.ids
-  cross_zone_load_balancing   = true
-  connection_draining         = true
-  connection_draining_timeout = 300
+  load_balancer_type = "network"
+  subnets            = data.aws_subnets.public.ids
 
-  listener {
-    instance_port     = 8080
-    instance_protocol = "http"
-    lb_port           = 8080
-    lb_protocol       = "http"
+  enable_cross_zone_load_balancing = true
+}
+
+resource "aws_lb_listener" "jenkins" {
+  for_each              = var.ports
+
+  load_balancer_arn = aws_lb.jenkins.arn
+
+  protocol          = "TCP" #(TLS)
+  port              = each.value # try 80
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.jenkins[each.key].arn
   }
+}
+
+resource "aws_lb_target_group" "jenkins" {
+  for_each = var.ports
+
+  port        = each.value
+  protocol    = "TCP"
+  vpc_id      = data.aws_vpc.main.id
+  # target_type = "instance"
+
+  depends_on = [
+    aws_lb.jenkins
+  ]
 
   health_check {
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 3
-    target              = "HTTP:8080/login"
+    healthy_threshold   = 5
+    unhealthy_threshold = 5
+    path                = "/login"
+    port                =  var.ports.http
+    protocol            = "HTTP"
     interval            = 30
   }
 
-   listener {
-     instance_port     = 22
-     instance_protocol = "TCP"
-     lb_port           = 22
-     lb_protocol       = "TCP"
-   }
-
-  tags = {
-    Name               = "${var.service_name}-${var.environment}"
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -67,13 +57,13 @@ data "template_file" "jenkins" {
 }
 
 resource "aws_launch_configuration" "jenkins" {
-  name_prefix   = join("-", [var.service_name, var.environment])
-  image_id      = data.aws_ami.ubuntu.id
-  instance_type = "t2.micro"
-  security_groups = [aws_security_group.http.id, aws_security_group.ssh.id]
-  key_name = var.key_name
+  name_prefix             = join("-", [var.service_name, var.environment])
+  image_id                = data.aws_ami.ubuntu.id
+  instance_type           = "t2.micro"
+  security_groups         = [aws_security_group.http.id, aws_security_group.ssh.id]
+  key_name                = var.key_name
 
-  user_data              = data.template_file.jenkins.rendered
+  user_data               = data.template_file.jenkins.rendered
 
   lifecycle {
     create_before_destroy = true
@@ -81,17 +71,23 @@ resource "aws_launch_configuration" "jenkins" {
 }
 
 resource "aws_autoscaling_group" "jenkins" {
-  name   = aws_launch_configuration.jenkins.name
+  name_prefix               = join("-", [var.service_name, var.environment])
   launch_configuration      = aws_launch_configuration.jenkins.id
   min_size                  = 1
-  max_size                  = length(data.aws_subnets.jenkins.ids)
+  max_size                  = length(data.aws_subnets.private.ids)
+  desired_capacity          = length(data.aws_subnets.private.ids)
   health_check_type         = "ELB"
-  load_balancers            = [aws_elb.jenkins.name]
   termination_policies      = ["OldestLaunchConfiguration"]
-  vpc_zone_identifier       = data.aws_subnets.jenkins.ids
+  vpc_zone_identifier       = data.aws_subnets.public.ids
   wait_for_capacity_timeout = "20m"
 
   lifecycle {
     create_before_destroy = true
   }
+}
+
+resource "aws_autoscaling_attachment" "target" {
+  for_each = var.ports
+  autoscaling_group_name = aws_autoscaling_group.jenkins.id
+  lb_target_group_arn   = aws_lb_target_group.jenkins[each.key].arn
 }

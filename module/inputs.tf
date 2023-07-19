@@ -22,3 +22,11 @@ variable "key_name" {
   type = string
   description = "Name of the key pair created in AWS"
 }
+
+variable "ports" {
+  type    = map(number)
+  default = {
+    http  = 8080
+    https = 443
+  }
+}
