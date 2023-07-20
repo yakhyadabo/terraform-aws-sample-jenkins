@@ -18,7 +18,7 @@ resource "aws_lb_listener" "jenkins" {
   load_balancer_arn = aws_lb.jenkins.arn
 
   protocol          = "TCP" #(TLS)
-  port              = each.value # try 80
+  port              = each.value != var.ports.http ? each.value : "80" # Set http listener port to 80
 
   default_action {
     type             = "forward"
@@ -78,7 +78,7 @@ resource "aws_autoscaling_group" "jenkins" {
   desired_capacity          = length(data.aws_subnets.private.ids)
   health_check_type         = "ELB"
   termination_policies      = ["OldestLaunchConfiguration"]
-  vpc_zone_identifier       = data.aws_subnets.public.ids
+  vpc_zone_identifier       = data.aws_subnets.private.ids
   wait_for_capacity_timeout = "20m"
 
   lifecycle {
