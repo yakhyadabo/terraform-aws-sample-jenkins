@@ -30,3 +30,11 @@ variable "ports" {
     https = 443
   }
 }
+
+variable "efs_ports" {
+  type    = map(number)
+  default = {
+    icmp  = 2049
+   # icmp_1 = -1
+  }
+}

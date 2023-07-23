@@ -7,4 +7,5 @@ locals {
     dba         = "dba"
   }
   vpc_id = "vpc-id"
+  jenkins_home = "/var/lib/jenkins"
 }

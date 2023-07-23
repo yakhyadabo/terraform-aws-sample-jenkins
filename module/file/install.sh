@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+##!/bin/bash -e
+exec 3>&1 4>&2
+exec 1>/var/log/jenkins-init.log 2>&1
+
 echo "Preparing installation ..."
 
 curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
@@ -7,14 +11,15 @@ echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins
 
 sudo apt update -qq
 
+echo "Installing NFS Utilities ..."
+sudo apt install -y nfs-common
+
 # Install JRE
 echo "Installing JRE ..."
 sudo apt install -y default-jre
 
-# Install and start Jenkins
 echo "Installing and start jenkins ..."
 sudo apt install -y jenkins
-sudo systemctl start jenkins
 
 # Install git
 echo "Installing git ..."
@@ -36,6 +41,37 @@ sudo apt install -y docker.io
 usermod -aG docker ubuntu
 systemctl start docker
 
+
+
+echo "Mount Location: ${MOUNT_LOCATION}"
+echo "Mount Target: ${MOUNT_TARGET}"
+
+# Create the directory where to mount EFS
+sudo mkdir -p "${MOUNT_LOCATION}"
+
+# Mount EFS
+sudo mount \
+    -t nfs4 \
+    -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport \
+    "${MOUNT_TARGET}":/ "${MOUNT_LOCATION}"
+
+# mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport fs-0a9ce57c106e408fa.efs.us-east-1.amazonaws.com:/ /var/lib/jenkins
+
+# Make Jenkins the owner of the EFS directory
+sudo chown jenkins:jenkins "${MOUNT_LOCATION}"
+
+# If EFS does not have jenkins mounted, reinstall Jenkins.
+#if [ ! -e /var/lib/jenkins/jobs ]
+#then
+#    echo "Initial EFS Deployment... Reinstalling Jenkins"
+#    sudo apt-get --assume-yes install --reinstall jenkins
+#fi
+
+sudo echo "${MOUNT_TARGET}:/ ${MOUNT_LOCATION} nfsdefaults,vers=4.1 0 0" >> /etc/fstab
+
+# Start Jenkins
+echo "Starting Jenkins ..."
+sudo systemctl start jenkins
 
 #sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 #sudo sh -c \"iptables-save > /etc/iptables.rules\"

@@ -24,6 +24,17 @@ resource "aws_lb_listener" "jenkins" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.jenkins[each.key].arn
   }
+
+#  default_action {
+#    type = "redirect"
+#
+#    redirect {
+#      host = "${var.jenkins_dns_fqdn}"
+#      port = "443"
+#      protocol = "HTTPS"
+#      status_code = "HTTP_301"
+#    }
+#  }
 }
 
 resource "aws_lb_target_group" "jenkins" {
@@ -54,6 +65,12 @@ resource "aws_lb_target_group" "jenkins" {
 
 data "template_file" "jenkins" {
   template = file("${path.module}/file/install.sh")
+  vars = {
+    MOUNT_TARGET = data.aws_efs_file_system.jenkins.dns_name
+    MOUNT_LOCATION = local.jenkins_home
+    # REGION = data.aws_region.current.name
+    #ALLOCATION_ID = "${aws_eip.jenkins-server-eip.id}"
+  }
 }
 
 resource "aws_launch_configuration" "jenkins" {
@@ -74,11 +91,14 @@ resource "aws_autoscaling_group" "jenkins" {
   name_prefix               = join("-", [var.service_name, var.environment])
   launch_configuration      = aws_launch_configuration.jenkins.id
   min_size                  = 1
-  max_size                  = length(data.aws_subnets.private.ids)
-  desired_capacity          = length(data.aws_subnets.private.ids)
+  max_size                  = 1
+  desired_capacity          = 1
+#  max_size                  = length(data.aws_subnets.private.ids)
+#  desired_capacity          = length(data.aws_subnets.private.ids)
   health_check_type         = "ELB"
   termination_policies      = ["OldestLaunchConfiguration"]
-  vpc_zone_identifier       = data.aws_subnets.private.ids
+  vpc_zone_identifier       = [data.aws_subnets.public.ids[0]]
+  # vpc_zone_identifier       = [data.aws_subnets.private.ids[0]]
   wait_for_capacity_timeout = "20m"
 
   lifecycle {

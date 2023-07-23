@@ -74,34 +74,32 @@ resource "aws_security_group" "icmp" {
     Name = "icmp_sg"
   }
 }
-#
-#resource "aws_security_group" "efs" {
-#  name        = "allow_nfs"
-#  description = "Allow incoming NFS port"
-#  vpc_id      = data.aws_vpc.selected.id
-#
-#  ingress {
-#    from_port   = 2049
-#    to_port     = 2049
-#    protocol    = "icmp"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#  ingress {
-#    from_port   = -1
-#    to_port     = -1
-#    protocol    = "icmp"
-#    cidr_blocks = ["0.0.0.0/0"]
-#  }
-#
-#  egress {
-#    from_port       = 0
-#    to_port         = 0
-#    protocol        = "-1"
-#    cidr_blocks     = ["0.0.0.0/0"]
-#  }
-#
-#  tags = {
-#    Name = "efs_sg"
-#  }
-#}
+
+resource "aws_security_group" "efs" {
+  name        = "allow_nfs"
+  description = "Allow incoming NFS port"
+  vpc_id      = data.aws_vpc.main.id
+  tags = {
+    Name = "efs_sg"
+  }
+}
+
+resource "aws_security_group_rule" "efs_ingress" {
+  for_each = var.efs_ports
+
+  security_group_id = aws_security_group.efs.id
+  from_port         = each.value
+  to_port           = each.value
+  protocol          = "tcp"
+  type              = "ingress"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "efs_egress" {
+  security_group_id = aws_security_group.efs.id
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  type              = "egress"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
