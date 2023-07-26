@@ -5,6 +5,8 @@
 !*.tf
 !*.tfvars
 !*.sh
+!*.pkr.hcl
+!*.yaml
 !README.adoc
 !Makefile
 !Dockerfile

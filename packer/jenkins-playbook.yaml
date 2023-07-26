@@ -1,0 +1,64 @@
+# Ansible Playbook for Jenkins AMI
+# Author: Yakhya Dabo
+# Date: 24/07/2023
+
+# Use Ansible's local mode to provision on the machine the playbook is run on
+- hosts: localhost
+  connection: local
+  become: yes
+
+#  vars:
+#    packages:
+#      - ubuntu-mate-core
+#      - ubuntu-mate-desktop
+#      #    - imagemagick
+#      - xrdp
+#
+#  tasks:
+#    - name: "Install dependencies"
+#      apt:
+#        pkg: "{{ packages }}"
+#        state: present
+
+  tasks:
+
+    - name: "Install Java11, Python3, Git, Wget & Unzip"
+      apt:
+        pkg:
+          - openjdk-11-jdk
+          - python3
+          - git
+          - wget
+          - unzip
+        state: present
+
+    # Downloading Jenkins - https://jenkins.io/doc/book/installing/#debianubuntu
+    - name: Import jenkins key from url
+      get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
+
+    - name: Download Long Term Jenkins release
+      become: yes
+      # 'command' cares about the returned code from the shell command.
+      # Ansible playbook fails if an error is returned.
+      command: "{{item}} || /bin/true"
+      ignore_errors: True
+      with_items:
+#        - wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | apt-key add -
+#        - sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+
+        # - curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+        - sh -c 'echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null'
+
+    - name: Update APT Packages
+      become: yes
+      apt:
+        update_cache: yes
+
+    - name: "Install Jenkins & NFS"
+      apt:
+        pkg:
+          - jenkins
+          - nfs-common
+        state: present
