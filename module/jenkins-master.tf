@@ -13,34 +13,23 @@ resource "aws_lb" "jenkins" {
 }
 
 resource "aws_lb_listener" "jenkins" {
-  for_each              = var.ports
-
   load_balancer_arn = aws_lb.jenkins.arn
 
-  protocol          = "TCP" #(TLS)
-  port              = each.value != var.ports.http ? each.value : "80" # Set http listener port to 80
+  protocol          = "TLS"
+  port              = var.ports.https
+
+  certificate_arn   = aws_acm_certificate_validation.certificate_validation.certificate_arn
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.jenkins[each.key].arn
+    target_group_arn = aws_lb_target_group.jenkins.arn
   }
 
-#  default_action {
-#    type = "redirect"
-#
-#    redirect {
-#      host = "${var.jenkins_dns_fqdn}"
-#      port = "443"
-#      protocol = "HTTPS"
-#      status_code = "HTTP_301"
-#    }
-#  }
 }
 
 resource "aws_lb_target_group" "jenkins" {
-  for_each = var.ports
-
-  port        = each.value
+  port        = var.ports.http
   protocol    = "TCP"
   vpc_id      = data.aws_vpc.main.id
   # target_type = "instance"
@@ -97,7 +86,7 @@ resource "aws_autoscaling_group" "jenkins" {
 #  desired_capacity          = length(data.aws_subnets.private.ids)
   health_check_type         = "ELB"
   termination_policies      = ["OldestLaunchConfiguration"]
-  vpc_zone_identifier       = [data.aws_subnets.public.ids[0]]
+  vpc_zone_identifier       = data.aws_subnets.public.ids
   # vpc_zone_identifier       = [data.aws_subnets.private.ids[0]]
   wait_for_capacity_timeout = "20m"
 
@@ -107,7 +96,6 @@ resource "aws_autoscaling_group" "jenkins" {
 }
 
 resource "aws_autoscaling_attachment" "target" {
-  for_each = var.ports
   autoscaling_group_name = aws_autoscaling_group.jenkins.id
-  lb_target_group_arn   = aws_lb_target_group.jenkins[each.key].arn
+  lb_target_group_arn   = aws_lb_target_group.jenkins.arn
 }

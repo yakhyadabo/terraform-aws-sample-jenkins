@@ -13,6 +13,28 @@ variable "service_name" {
   default = "jenkins"
 }
 
+variable "root_domain" {
+  type = string
+  nullable = false
+
+  description = <<EOT
+  Name of the domain
+
+  Example : dev.example.com
+  EOT
+}
+
+variable "sub_domain" {
+  type = string
+  nullable = false
+
+  description = <<EOT
+  Name of the sub domain
+
+  Example : jenkins
+  EOT
+}
+
 variable "vpc_name" {
   type = string
   description = "The name of the vpc"
