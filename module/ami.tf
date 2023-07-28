@@ -1,10 +1,11 @@
 # Find an official Ubuntu AMI
 data "aws_ami" "ubuntu" {
   most_recent = true
+  owners           = ["self"]
 
   filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+    name   = "tag:component"
+    values = ["ubuntu-jenkins-master-core"]
   }
 
   filter {
@@ -17,5 +18,4 @@ data "aws_ami" "ubuntu" {
     values = ["x86_64"]
   }
 
-  owners = ["099720109477"] # Canonical official
 }

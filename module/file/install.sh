@@ -6,25 +6,6 @@ exec 1>/var/log/jenkins-init.log 2>&1
 
 echo "Preparing installation ..."
 
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
-echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
-
-sudo apt update -qq
-
-echo "Installing NFS Utilities ..."
-sudo apt install -y nfs-common
-
-# Install JRE
-echo "Installing JRE ..."
-sudo apt install -y default-jre
-
-echo "Installing and start jenkins ..."
-sudo apt install -y jenkins
-
-# Install git
-echo "Installing git ..."
-sudo apt install -y git
-
 # Setup git
 echo "Setting up SSH key ..."
 JENKINS_HOME=/var/lib/jenkins
@@ -36,10 +17,10 @@ chmod 644 $JENKINS_HOME/.ssh/id_rsa.pub
 chmod 600 $JENKINS_HOME/.ssh/id_rsa
 chown -R jenkins:jenkins $JENKINS_HOME/.ssh
 
-echo "Install Docker engine"
-sudo apt install -y docker.io
-usermod -aG docker ubuntu
-systemctl start docker
+#echo "Install Docker engine"
+#sudo apt install -y docker.io
+#usermod -aG docker ubuntu
+#systemctl start docker
 
 
 
@@ -74,7 +55,10 @@ sudo sed -i -e 's/https/http/g' /var/lib/jenkins/hudson.model.UpdateCenter.xml
 
 # Start Jenkins
 echo "Starting Jenkins ..."
+# TODO: Don't run jenkins as root
 sudo systemctl start jenkins
+
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 
 #sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 #sudo sh -c \"iptables-save > /etc/iptables.rules\"
