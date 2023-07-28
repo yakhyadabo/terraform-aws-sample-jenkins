@@ -1,5 +1,5 @@
 source "amazon-ebs" "ubuntu" {
-  ami_name      = "/jenkins/images/${var.ami_name}-${local.timestamp}"
+  ami_name      = "${var.component}-${local.timestamp}"
   instance_type = var.instance_type
   region        = var.aws_region
   access_key = var.aws_access_key
@@ -23,13 +23,43 @@ source "amazon-ebs" "ubuntu" {
     random = false
   }
 
-  tags = {
-    Name = "jenkins"
-    create_at = local.timestamp
+  run_tags = {
+    Name = "packer-${var.component}-builder"
+    component = var.component
+    base_ami_id = "{{ .SourceAMI }}"
+    base_ami_name = "{{ .SourceAMIName }}"
+    version = local.timestamp
     region = var.aws_region
   }
 
-  skip_create_ami = true
+  run_volume_tags = {
+    Name = "packer-${var.component}-builder"
+    component = var.component
+    base_ami_id = "{{ .SourceAMI }}"
+    base_ami_name = "{{ .SourceAMIName }}"
+    version = local.timestamp
+    region = var.aws_region
+  }
+
+  snapshot_tags = {
+    Name = "${var.component}-${local.timestamp}-snapshot"
+    component = var.component
+    base_ami_id = "{{ .SourceAMI }}"
+    base_ami_name = "{{ .SourceAMIName }}"
+    version = local.timestamp
+    region = var.aws_region
+  }
+
+  tags = {
+    Name = "${var.component}-${local.timestamp}"
+    component = var.component
+    base_ami_id = "{{ .SourceAMI }}"
+    base_ami_name = "{{ .SourceAMIName }}"
+    version = local.timestamp
+    region = var.aws_region
+  }
+
+  skip_create_ami = var.skip_create_ami
 
   source_ami_filter {
     filters = {
@@ -38,13 +68,13 @@ source "amazon-ebs" "ubuntu" {
       virtualization-type = "hvm"
     }
     most_recent = true
-    owners      = [var.base_ami_owner]
+    owners      = [var.aws_ami_owner]
   }
 
 }
 
 build {
-  name    = "jenkins-packer"
+  name    = "packer-jenkins"
   sources = [
     "source.amazon-ebs.ubuntu"
   ]
@@ -66,12 +96,13 @@ variables {
   aws_region     = "us-east-1"
   aws_access_key = env("AWS_ACCESS_KEY_ID")
   aws_secret_key = env("AWS_SECRET_ACCESS_KEY")
-  ami_name       = "jenkins-server"
+  aws_ami_owner = "099720109477"
+  component       = "ubuntu-jenkins-master-core"
   ssh_username   = "ubuntu"
   instance_type  = "t2.micro"
-  aws_ami_owner = "099720109477"
+  skip_create_ami = true
 }
 
 locals {
-  timestamp = regex_replace(timestamp(), "[- TZ:]", "")
+  timestamp = formatdate("YYYY-MM-DD-hh-mm-ss", timestamp())
 }
