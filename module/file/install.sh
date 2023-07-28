@@ -69,6 +69,9 @@ sudo chown jenkins:jenkins "${MOUNT_LOCATION}"
 
 sudo echo "${MOUNT_TARGET}:/ ${MOUNT_LOCATION} nfsdefaults,vers=4.1 0 0" >> /etc/fstab
 
+# Since we use https
+sudo sed -i -e 's/https/http/g' /var/lib/jenkins/hudson.model.UpdateCenter.xml
+
 # Start Jenkins
 echo "Starting Jenkins ..."
 sudo systemctl start jenkins
